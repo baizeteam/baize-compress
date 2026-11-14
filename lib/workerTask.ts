@@ -6,9 +6,27 @@ export interface WorkerTaskOptions extends Pick<CompressPayload, "arrayBuffer" |
   timeoutMs: number;
 }
 
-export interface WorkerTaskResult extends CompressResult {
+type SuccessfulResult = Extract<CompressResult, { success: true }>;
+
+export interface WorkerTaskResult extends SuccessfulResult {
   startTime: number;
   endTime: number;
+}
+
+// 获得执行名额后读取文件，取消时立即结束等待且不再提交缓冲区。
+export async function readTaskFile(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
+  if (signal.aborted) throw new Error("Worker manager terminated");
+  let handleAbort: () => void;
+  const canceled = new Promise<never>((_, reject) => {
+    // 取消读取等待，底层已开始的原生读取由浏览器自行完成。
+    handleAbort = () => reject(new Error("Worker manager terminated"));
+    signal.addEventListener("abort", handleAbort, { once: true });
+  });
+  try {
+    return await Promise.race([canceled, file.arrayBuffer()]);
+  } finally {
+    signal.removeEventListener("abort", handleAbort!);
+  }
 }
 
 // 执行单个 Worker 任务，统一处理计时、取消、异常和监听器清理。
@@ -23,7 +41,7 @@ export function runWorkerTask(
     let settled = false;
 
     // 结束任务并清理定时器及事件监听器。
-    const finish = (error?: unknown, result?: CompressResult, discard = false) => {
+    const finish = (error?: unknown, result?: SuccessfulResult, discard = false) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
@@ -38,7 +56,9 @@ export function runWorkerTask(
     // 接收压缩结果，普通压缩失败时保留线程供后续任务复用。
     const handleMessage = (event: MessageEvent<CompressResult>) => {
       const result = event.data;
-      if (result.success) finish(undefined, result);
+      if (result.success && !(result.data instanceof ArrayBuffer))
+        finish(new Error("压缩模块未返回有效的 ArrayBuffer"));
+      else if (result.success) finish(undefined, result);
       else finish(new Error(result.error || "压缩失败"));
     };
 

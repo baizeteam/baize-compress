@@ -3,6 +3,7 @@ import {
   type CompressBackInfo,
   type CompressPlugin,
   type ImageCompressorOptions,
+  type CompressResult,
 } from "baize-compress";
 import { jpegWebp } from "baize-compress/plugins/jpeg-webp";
 import { png } from "baize-compress/plugins/png";
@@ -22,3 +23,11 @@ const compatibleResults: typeof results = compressor.compressImagesWorker([]);
 void results;
 void compatibleResults;
 compressor.cancelAll();
+
+const success: CompressResult = { success: true, data: new ArrayBuffer(0) };
+const failure: CompressResult = { success: false, error: "压缩失败" };
+// @ts-expect-error 成功结果必须包含缓冲区。
+const missingData: CompressResult = { success: true };
+// @ts-expect-error 失败结果必须包含错误说明。
+const missingError: CompressResult = { success: false };
+void [success, failure, missingData, missingError];

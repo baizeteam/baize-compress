@@ -1,9 +1,10 @@
 import workerUrl from "./pool.worker.ts?worker&url";
 import type { CompressPlugin } from "./types";
 import { validateTimeout } from "./utils";
-import { runWorkerTask, type WorkerTaskOptions, type WorkerTaskResult } from "./workerTask";
+import { readTaskFile, runWorkerTask, type WorkerTaskOptions, type WorkerTaskResult } from "./workerTask";
 
-interface QueuedTask extends WorkerTaskOptions {
+interface QueuedTask extends Omit<WorkerTaskOptions, "arrayBuffer"> {
+  file: File;
   resolve: (value: WorkerTaskResult) => void;
   reject: (reason: unknown) => void;
 }
@@ -18,6 +19,9 @@ export class WorkerManager {
 
   // 保存插件列表和线程并发上限。
   constructor(plugins: CompressPlugin[], maxWorkers = 4) {
+    if (!Number.isSafeInteger(maxWorkers) || maxWorkers <= 0) {
+      throw new Error("workerNum 必须是有效的正整数");
+    }
     this.plugins = plugins;
     this.maxWorkers = maxWorkers;
   }
@@ -63,7 +67,8 @@ export class WorkerManager {
     };
 
     try {
-      task.resolve(await runWorkerTask(worker, task, controller.signal, discardWorker));
+      const arrayBuffer = await readTaskFile(task.file, controller.signal);
+      task.resolve(await runWorkerTask(worker, { ...task, arrayBuffer }, controller.signal, discardWorker));
     } catch (error) {
       task.reject(error);
     } finally {
@@ -73,7 +78,8 @@ export class WorkerManager {
   }
 
   // 校验插件配置并将压缩任务加入队列。
-  public async executeTask(arrayBuffer: ArrayBuffer, fileName: string, fileType: string): Promise<WorkerTaskResult> {
+  public async executeTask(file: File): Promise<WorkerTaskResult> {
+    const { name: fileName, type: fileType } = file;
     const plugin = this.findPlugin(fileType);
     if (!plugin) {
       throw new Error(`Unsupported file type: ${fileType}`);
@@ -87,7 +93,7 @@ export class WorkerManager {
 
     return new Promise((resolve, reject) => {
       this.taskQueue.push({
-        arrayBuffer,
+        file,
         fileName,
         fileType,
         moduleUrl,

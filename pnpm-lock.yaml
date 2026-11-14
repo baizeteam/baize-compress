@@ -27,7 +27,7 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
       gifsicle-wasm-browser:
-        specifier: ^1.5.19
+        specifier: 1.5.19
         version: 1.5.19
       mediabunny:
         specifier: ^1.66.0

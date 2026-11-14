@@ -57,6 +57,10 @@ test("通用线程缓存压缩模块并隔离失败", async (t) => {
   (await import(first)).replace();
   assert.equal((await send(first)).fileName, "valid");
   assert.deepEqual(await send(first, "invalid"), { success: false, error: "invalid input" });
+  assert.deepEqual(await send(moduleUrl("export const compress = () => ({success:true});")), {
+    success: false,
+    error: "压缩模块未返回有效的 ArrayBuffer",
+  });
   assert.match((await send(retry)).error, /缺少 compress 导出/);
   await delay(10);
   assert.equal((await send(retry)).fileName, "retried");

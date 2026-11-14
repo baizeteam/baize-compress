@@ -31,7 +31,8 @@ self.addEventListener("message", async (event: MessageEvent) => {
     if (typeof moduleUrl !== "string" || !moduleUrl) throw new Error("插件缺少压缩模块入口");
     const compress = await loadCompress(moduleUrl);
     const result = await compress(payload as CompressPayload);
-    self.postMessage(result, result.data ? [result.data] : []);
+    if (result.success && !(result.data instanceof ArrayBuffer)) throw new Error("压缩模块未返回有效的 ArrayBuffer");
+    self.postMessage(result, result.success ? [result.data] : []);
   } catch (error) {
     self.postMessage({
       success: false,

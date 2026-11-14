@@ -1,10 +1,6 @@
-export interface CompressResult {
-  success: boolean;
-  data?: ArrayBuffer;
-  fileName?: string;
-  fileType?: string;
-  error?: string;
-}
+export type CompressResult =
+  | { success: true; data: ArrayBuffer; fileName?: string; fileType?: string }
+  | { success: false; error: string };
 
 export interface CompressPluginConfig {
   quality?: number;
