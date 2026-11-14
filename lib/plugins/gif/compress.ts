@@ -37,7 +37,8 @@ export async function compress({
 }: CompressPayload): Promise<CompressResult> {
   const level = resolveOptimize(optimize);
   const lossyValue = resolveLossy(quality, lossy);
-  const args = [`-O${level}`];
+  // 关闭引擎的普通警告，保留错误输出和原有调色板处理。
+  const args = ["--no-warnings", `-O${level}`];
   if (lossyValue > 0) args.push(`--lossy=${lossyValue}`);
   args.push("input.gif", "-o", "/out/out.gif");
 
