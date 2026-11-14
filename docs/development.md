@@ -29,3 +29,16 @@ pnpm build:page
 ```
 
 `pnpm test` 构建发布产物、验证公共类型导入，并执行线程池、取消、异常恢复和图片插件回归测试。
+
+## 发布
+
+`package.json` 的 `publishConfig.registry` 固定发布到 npm 官方源；`.npmrc` 中的镜像地址仅用于安装依赖。
+
+```sh
+npm login --registry=https://registry.npmjs.org/
+npm whoami --registry=https://registry.npmjs.org/
+npm publish --dry-run
+npm publish
+```
+
+已登录官方源时可跳过 `npm login`。`--dry-run` 会构建并检查发布内容，不会上传包。
