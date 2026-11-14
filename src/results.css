@@ -1,0 +1,89 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 340px;
+  border: 1px dashed #d9d2e7;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.empty-state > svg {
+  width: 30px;
+  height: 30px;
+  color: #b3a6c9;
+}
+.comparison-list {
+  display: grid;
+  gap: 20px;
+}
+.comparison-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+}
+.comparison-title {
+  grid-column: 1 / -1;
+  padding: 20px 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 500;
+}
+.comparison-column {
+  min-width: 0;
+  padding: 20px 22px;
+}
+.comparison-column + .comparison-column {
+  border-left: 1px solid var(--border);
+}
+.column-label {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.result-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  padding: 24px;
+  color: var(--accent);
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.result-error {
+  align-items: flex-start;
+  background: #fff6f7;
+  color: #ad4a56;
+  border-radius: 8px;
+  text-align: left;
+}
+.result-error strong {
+  font-weight: 500;
+}
+.result-error p {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 680px) {
+  .comparison-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .comparison-column + .comparison-column {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

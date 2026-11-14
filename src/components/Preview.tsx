@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { formatFileSize } from "../utils";
+import "./preview.css";
 
-// 预览图片、音频或视频，并提供文件下载。
+// 预览图片、音频或视频，并显示文件大小。
 export function Preview({ file }: { file: File }) {
   const [url, setUrl] = useState("");
 
@@ -12,18 +14,21 @@ export function Preview({ file }: { file: File }) {
   }, [file]);
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div>{file.name}</div>
-      {file.type.startsWith("video/") ? (
-        <video src={url} controls style={{ maxWidth: "100%", maxHeight: 400 }} />
-      ) : file.type.startsWith("audio/") || file.type === "application/ogg" ? (
-        <audio src={url} controls />
-      ) : (
-        <img src={url} style={{ display: "block", maxWidth: "100%", maxHeight: 400 }} alt={file.name} />
-      )}
-      <a href={url} download={file.name}>
-        下载
-      </a>
+    <div className="file-preview">
+      <div className="preview-stage">
+        {file.type.startsWith("video/") ? (
+          <video src={url} controls />
+        ) : file.type.startsWith("audio/") || file.type === "application/ogg" ? (
+          <div className="audio-preview">
+            <audio src={url} controls />
+          </div>
+        ) : (
+          <img src={url} alt={file.name} />
+        )}
+      </div>
+      <div className="file-details">
+        <span>{formatFileSize(file.size)}</span>
+      </div>
     </div>
   );
 }

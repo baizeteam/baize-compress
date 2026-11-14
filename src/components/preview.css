@@ -1,0 +1,53 @@
+.preview-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  padding: 16px;
+  border-radius: 9px;
+  background: #f7f5fa;
+}
+
+.preview-stage img,
+.preview-stage video {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.audio-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.audio-preview audio {
+  width: 100%;
+}
+
+.file-details,
+.compression-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.compression-stats {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.saving-badge {
+  color: var(--accent);
+}
