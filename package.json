@@ -1,0 +1,89 @@
+{
+  "name": "baize-compress",
+  "version": "3.0.1",
+  "type": "module",
+  "keywords": [
+    "compress",
+    "image",
+    "audio",
+    "video",
+    "mediabunny",
+    "webcodecs",
+    "web-worker",
+    "image-compression",
+    "jpeg",
+    "png",
+    "webp",
+    "svg",
+    "gif",
+    "svgo",
+    "gifsicle",
+    "OffscreenCanvas",
+    "upng-js"
+  ],
+  "files": [
+    "dist",
+    "index.d.ts",
+    "plugins"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baizeteam/baize-compress"
+  },
+  "module": "./dist/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugins/jpeg-webp": {
+      "types": "./plugins/jpeg-webp.d.ts",
+      "import": "./dist/plugins/jpeg-webp.js"
+    },
+    "./plugins/png": {
+      "types": "./plugins/png.d.ts",
+      "import": "./dist/plugins/png.js"
+    },
+    "./plugins/svg": {
+      "types": "./plugins/svg.d.ts",
+      "import": "./dist/plugins/svg.js"
+    },
+    "./plugins/gif": {
+      "types": "./plugins/gif.d.ts",
+      "import": "./dist/plugins/gif.js"
+    },
+    "./plugins/media": {
+      "types": "./plugins/media.d.ts",
+      "import": "./dist/plugins/media.js"
+    },
+    "./plugins/jpeg-webp-compress.js": "./dist/plugins/jpeg-webp-compress.js",
+    "./plugins/png-compress.js": "./dist/plugins/png-compress.js",
+    "./plugins/svg-compress.js": "./dist/plugins/svg-compress.js",
+    "./plugins/gif-compress.js": "./dist/plugins/gif-compress.js",
+    "./plugins/media-compress.js": "./dist/plugins/media-compress.js"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build:page": "tsc && cross-env BUILD_MODE=page vite build",
+    "build": "tsc && cross-env BUILD_MODE=lib vite build"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/upng-js": "^2.1.5",
+    "@vitejs/plugin-react": "^4.3.1",
+    "cross-env": "^7.0.3",
+    "gifsicle-wasm-browser": "^1.5.19",
+    "mediabunny": "^1.66.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rollup-plugin-node-externals": "^7.1.2",
+    "svgo": "^4.0.1",
+    "typescript": "^5.4.5",
+    "upng-js": "^2.1.0",
+    "vite": "^5.2.10"
+  },
+  "description": "Plugin-based image, audio and video compression in Web Workers.",
+  "packageManager": "pnpm@10.33.4"
+}
