@@ -20,7 +20,7 @@ import { media } from "baize-compress/plugins/media";
 
 const compressor = new ImageCompressor({
   workerNum: 2,
-  plugins: [jpegWebp(), png(), svg(), gif(), media({ maxWidth: 1280, maxHeight: 720 })],
+  plugins: [jpegWebp(), png(), svg(), gif(), media()],
 });
 
 try {
