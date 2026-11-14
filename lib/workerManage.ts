@@ -1,34 +1,33 @@
 import workerUrl from "./pool.worker.ts?worker&url";
-import type { CompressPlugin, CompressPluginConfig, CompressResult } from "./types";
+import type { CompressPlugin } from "./types";
+import { validateTimeout } from "./utils";
+import { runWorkerTask, type WorkerTaskOptions, type WorkerTaskResult } from "./workerTask";
 
-interface QueuedTask {
-  arrayBuffer: ArrayBuffer;
-  fileName: string;
-  fileType: string;
-  moduleUrl: string;
-  config: CompressPluginConfig;
-  timeoutMs: number;
-  resolve: (value: CompressResult) => void;
-  reject: (reason: any) => void;
+interface QueuedTask extends WorkerTaskOptions {
+  resolve: (value: WorkerTaskResult) => void;
+  reject: (reason: unknown) => void;
 }
 
+// 管理所有插件共用的 Worker 池和待执行队列。
 export class WorkerManager {
   private plugins: CompressPlugin[];
   private workers = new Set<Worker>();
-  private active = new Set<Worker>();
-  private runningTasks = new Map<Worker, (error: Error) => void>();
+  private active = new Map<Worker, AbortController>();
   private taskQueue: QueuedTask[] = [];
   private maxWorkers: number;
 
+  // 保存插件列表和线程并发上限。
   constructor(plugins: CompressPlugin[], maxWorkers = 4) {
     this.plugins = plugins;
     this.maxWorkers = maxWorkers;
   }
 
+  // 按注册顺序查找支持当前文件类型的插件。
   private findPlugin(fileType: string): CompressPlugin | null {
     return this.plugins.find((plugin) => plugin.matches(fileType)) ?? null;
   }
 
+  // 优先复用空闲线程，并在并发上限内创建新线程。
   private processNextTask(): void {
     while (this.taskQueue.length > 0) {
       const task = this.taskQueue[0];
@@ -52,12 +51,19 @@ export class WorkerManager {
     }
   }
 
+  // 执行排队任务，并在任务结束后继续调度。
   private async executeTaskWithWorker(worker: Worker, task: QueuedTask): Promise<void> {
-    this.active.add(worker);
+    const controller = new AbortController();
+    this.active.set(worker, controller);
+
+    // 终止并移除无法继续使用的线程。
+    const discardWorker = () => {
+      worker.terminate();
+      this.workers.delete(worker);
+    };
 
     try {
-      const result = await this.runWorkerTask(worker, task);
-      task.resolve(result);
+      task.resolve(await runWorkerTask(worker, task, controller.signal, discardWorker));
     } catch (error) {
       task.reject(error);
     } finally {
@@ -66,82 +72,8 @@ export class WorkerManager {
     }
   }
 
-  private runWorkerTask(worker: Worker, task: QueuedTask): Promise<CompressResult> {
-    return new Promise((resolve, reject) => {
-      let settled = false;
-
-      const cleanup = () => {
-        clearTimeout(timeoutId);
-        worker.removeEventListener("message", handleMessage);
-        worker.removeEventListener("error", handleError);
-        this.runningTasks.delete(worker);
-      };
-
-      const timeoutId = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        worker.terminate();
-        this.workers.delete(worker);
-        reject(new Error("Worker timeout"));
-      }, task.timeoutMs);
-
-      const startTime = Date.now();
-
-      const handleMessage = (event: MessageEvent) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-
-        const result = event.data as CompressResult;
-        (result as any).startTime = startTime;
-        (result as any).endTime = Date.now();
-        if (result.success) {
-          resolve(result);
-        } else {
-          reject(new Error(result.error || "压缩失败"));
-        }
-      };
-
-      const handleError = (error: ErrorEvent) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        worker.terminate();
-        this.workers.delete(worker);
-        reject(new Error(`Worker error: ${error.message}`));
-      };
-
-      worker.addEventListener("message", handleMessage);
-      worker.addEventListener("error", handleError);
-      this.runningTasks.set(worker, (error) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(error);
-      });
-
-      try {
-        worker.postMessage(
-          {
-            ...task.config,
-            type: "compress",
-            moduleUrl: task.moduleUrl,
-            arrayBuffer: task.arrayBuffer,
-            fileName: task.fileName,
-            fileType: task.fileType,
-          },
-          [task.arrayBuffer],
-        );
-      } catch (error) {
-        settled = true;
-        cleanup();
-        reject(error);
-      }
-    });
-  }
-
-  public async executeTask(arrayBuffer: ArrayBuffer, fileName: string, fileType: string): Promise<CompressResult> {
+  // 校验插件配置并将压缩任务加入队列。
+  public async executeTask(arrayBuffer: ArrayBuffer, fileName: string, fileType: string): Promise<WorkerTaskResult> {
     const plugin = this.findPlugin(fileType);
     if (!plugin) {
       throw new Error(`Unsupported file type: ${fileType}`);
@@ -151,9 +83,7 @@ export class WorkerManager {
     }
     const moduleUrl = new URL(plugin.moduleUrl, globalThis.location.href).href;
     const timeoutMs = plugin.timeoutMs ?? 30_000;
-    if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
-      throw new Error(`插件 ${plugin.name} 的 timeoutMs 必须是 1-2147483647 之间的整数`);
-    }
+    validateTimeout(timeoutMs, `插件 ${plugin.name}`);
 
     return new Promise((resolve, reject) => {
       this.taskQueue.push({
@@ -170,13 +100,11 @@ export class WorkerManager {
     });
   }
 
+  // 取消排队和运行中的任务，释放线程并允许后续重新提交。
   public terminate(): void {
-    this.taskQueue.forEach((task) => {
-      task.reject(new Error("Worker manager terminated"));
-    });
+    this.taskQueue.forEach((task) => task.reject(new Error("Worker manager terminated")));
     this.taskQueue = [];
-
-    this.runningTasks.forEach((reject) => reject(new Error("Worker manager terminated")));
+    this.active.forEach((controller) => controller.abort());
     this.workers.forEach((worker) => worker.terminate());
     this.workers.clear();
     this.active.clear();

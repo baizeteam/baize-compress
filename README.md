@@ -35,6 +35,7 @@ const compressor = new ImageCompressor({
 
 const compressionResults = await compressor.compressImagesWorker(files);
 
+// 按输入顺序处理每个文件的压缩结果。
 compressionResults.forEach((result, index) => {
   if (result.status === "fulfilled") {
     const { compressInfo, file } = result.value;
@@ -187,9 +188,11 @@ try {
 ```typescript
 import type { CompressPlugin } from "baize-compress";
 
+// 创建 JSON 空白压缩插件。
 export function compactJson(): CompressPlugin {
   return {
     name: "compact-json",
+    // 匹配 JSON 文件的 MIME 类型。
     matches: (fileType) => fileType === "application/json",
     moduleUrl: new URL("./json.compress.js", import.meta.url).href,
     defaultConfig: {},
@@ -200,6 +203,7 @@ export function compactJson(): CompressPlugin {
 独立压缩模块 `json.compress.js`：
 
 ```javascript
+// 删除 JSON 空白，并在结果未变小时保留原始数据。
 export async function compress({ arrayBuffer, fileName, fileType }) {
   const value = JSON.parse(new TextDecoder().decode(arrayBuffer));
   const compressed = new TextEncoder().encode(JSON.stringify(value));
@@ -264,6 +268,16 @@ compressImagesWorker(files: File[]): Promise<PromiseSettledResult<CompressBackIn
 | `file`                        | `File`   | 压缩后的文件对象       |
 
 ## 本地开发与验证
+
+代码按以下职责组织：
+
+- `lib/main.ts`：对外 API、文件校验与压缩统计。
+- `lib/workerManage.ts` / `lib/workerTask.ts`：线程池调度 / 单任务执行、超时与取消。
+- `lib/pool.worker.ts`：在线程内加载和缓存插件压缩模块。
+- `lib/plugins/`：插件配置入口与独立压缩实现。
+- `lib/types.ts`：共用类型；`src/`：示例页面与预览组件。
+
+`pnpm build` 从源码生成 `dist/types/`，根目录和 `plugins/` 下的声明文件仅转出公共类型。修改 API 时直接更新源码；`pnpm test` 会同时验证公共类型导入和运行行为，`pnpm pack` 会自动构建。
 
 使用 Node.js 20.19+ 或 22.12+（推荐 Node.js 24）。在仓库根目录执行：
 

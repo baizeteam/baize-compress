@@ -13,6 +13,7 @@ import {
 import type { CompressPayload, CompressResult } from "../../types";
 import type { MediaConfig } from "./index";
 
+// 使用浏览器编解码能力转码音视频并释放转换资源。
 export async function compress(payload: CompressPayload): Promise<CompressResult> {
   const {
     arrayBuffer,
@@ -58,6 +59,7 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
       output,
       tracks: "primary",
       showWarnings: false,
+      // 保持原始比例缩小视频，并将编码尺寸对齐为偶数。
       video: async (track) => {
         const width = await track.getDisplayWidth();
         const height = await track.getDisplayHeight();
@@ -80,7 +82,7 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
         forceTranscode: true,
       },
     });
-    // A conversion can be valid even after dropping an unsupported audio/video track.
+    // 转换有效时也可能丢弃不受支持的轨道，需显式拒绝以避免静默丢失音视频。
     if (!conversion.isValid || conversion.discardedTracks.length > 0) {
       const reasons = conversion.discardedTracks.map(({ reason }) => reason).join(", ");
       throw new Error(

@@ -1,6 +1,6 @@
 {
   "name": "baize-compress",
-  "version": "3.0.1",
+  "version": "0.0.1",
   "type": "module",
   "keywords": [
     "compress",
@@ -62,10 +62,11 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test tests/*.test.mjs",
+    "test": "pnpm build && tsc -p tests/tsconfig.json && node --test tests/*.test.mjs",
     "dev": "vite",
     "build:page": "tsc && cross-env BUILD_MODE=page vite build",
-    "build": "tsc && cross-env BUILD_MODE=lib vite build"
+    "build": "tsc && cross-env BUILD_MODE=lib vite build && tsc -p tsconfig.declarations.json",
+    "prepack": "pnpm build"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
@@ -84,7 +85,7 @@
     "upng-js": "^2.1.0",
     "vite": "^8.3.8"
   },
-  "description": "Plugin-based image, audio and video compression in Web Workers.",
+  "description": "基于插件和共用 Web Worker 池的图片、音频及视频压缩库。",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },

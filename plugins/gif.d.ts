@@ -1,8 +1,2 @@
-import type { CompressPlugin, CompressPluginConfig } from "../index";
-
-export interface GifConfig extends CompressPluginConfig {
-  optimize?: 1 | 2 | 3;
-  lossy?: number;
-}
-
-export declare function gif(config?: GifConfig): CompressPlugin;
+// 从源码生成的声明导出插件及配置类型。
+export * from "../dist/types/plugins/gif/index.js";

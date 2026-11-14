@@ -29,6 +29,7 @@ export type CompressFunc = (payload: CompressPayload) => Promise<CompressResult>
 
 export interface CompressPlugin {
   name: string;
+  // 判断当前文件 MIME 类型是否由插件处理。
   matches: (fileType: string) => boolean;
   /** 插件内部的压缩模块入口，模块必须导出 compress；使用者无需配置 */
   moduleUrl: string;

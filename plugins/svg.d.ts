@@ -1,8 +1,2 @@
-import type { CompressPlugin, CompressPluginConfig } from "../index";
-
-export interface SvgConfig extends CompressPluginConfig {
-  floatPrecision?: number;
-  svgoPlugins?: any[];
-}
-
-export declare function svg(config?: SvgConfig): CompressPlugin;
+// 从源码生成的声明导出插件及配置类型。
+export * from "../dist/types/plugins/svg/index.js";

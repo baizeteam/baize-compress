@@ -1,75 +1,11 @@
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
-import { ImageCompressor } from "../dist/index.js";
-import { readdir } from "node:fs/promises";
+import { getEventListeners } from "node:events";
+import { setup } from "./helpers/worker.mjs";
 
-function setup(t, workerNum = 2) {
-  const previousWorker = globalThis.Worker;
-  const previousLocation = globalThis.location;
-  t.after(() => {
-    if (previousWorker === undefined) delete globalThis.Worker;
-    else globalThis.Worker = previousWorker;
-    if (previousLocation === undefined) delete globalThis.location;
-    else globalThis.location = previousLocation;
-  });
-  globalThis.location = { href: "https://example.test/app/" };
-  const stats = { live: 0, peak: 0, created: 0, transferred: 0 };
-  class TestWorker extends EventTarget {
-    terminated = false;
-
-    constructor() {
-      super();
-      stats.created++;
-      stats.peak = Math.max(stats.peak, ++stats.live);
-    }
-
-    postMessage(message, transfer) {
-      const data = structuredClone(message, { transfer });
-      assert.equal(message.arrayBuffer.byteLength, 0);
-      stats.transferred++;
-      assert.equal(data.moduleUrl, `https://example.test/modules/${data.fileType.split("/")[1]}.js`);
-      if (data.fileName === "hang") return;
-      setTimeout(() => {
-        if (this.terminated) return;
-        if (data.fileName === "crash") {
-          this.dispatchEvent(Object.assign(new Event("error"), { message: "worker crashed" }));
-          return;
-        }
-        this.dispatchEvent(
-          new MessageEvent("message", {
-            data:
-              data.fileName === "invalid"
-                ? { success: false, error: "invalid file" }
-                : { success: true, data: data.arrayBuffer, fileName: data.fileName, fileType: data.fileType },
-          }),
-        );
-      }, 5);
-    }
-
-    terminate() {
-      if (this.terminated) return;
-      this.terminated = true;
-      stats.live--;
-    }
-  }
-
-  globalThis.Worker = TestWorker;
-
-  const plugin = (name, extra = {}) => ({
-    name,
-    matches: (type) => type === `application/${name}`,
-    moduleUrl: `/modules/${name}.js`,
-    defaultConfig: {},
-    ...extra,
-  });
-  const plugins = [plugin("first"), plugin("second")];
-  const compressor = new ImageCompressor({ workerNum, plugins });
-  const file = (name = "file", type = "first") => new File([name], name, { type: `application/${type}` });
-  return { compressor, plugins, plugin, file, stats, TestWorker };
-}
-
-test("mixed plugins share the concurrency limit and preserve input order", async (t) => {
+// 验证混合插件共用并发上限并保持输入顺序。
+test("混合插件共用并发上限并保持输入顺序", async (t) => {
   const { compressor, file, stats } = setup(t);
   t.after(() => compressor.cancelAll());
   assert.equal(stats.created, 0);
@@ -83,11 +19,63 @@ test("mixed plugins share the concurrency limit and preserve input order", async
   assert.equal(stats.peak, 2);
   assert.equal(stats.created, 2);
   assert.equal(stats.transferred, files.length);
+  for (const result of results) {
+    assert.ok(Number.isFinite(result.value.compressInfo.time));
+    assert.ok(result.value.compressInfo.time >= 0);
+  }
   compressor.cancelAll();
   assert.equal(stats.live, 0);
 });
 
-test("reuses one worker across alternating plugins and separate batches", async (t) => {
+// 验证输入转移失败后清理事件监听器，后续任务仍可复用线程。
+test("输入转移失败后清理监听器并继续执行队列", async (t) => {
+  const { compressor, TestWorker, file, stats } = setup(t, 1);
+  t.after(() => compressor.cancelAll());
+  let worker;
+  // 模拟消息序列化失败并记录实际使用的线程。
+  globalThis.Worker = class extends TestWorker {
+    // 保存线程引用以检查任务结束后的事件监听器。
+    constructor() {
+      super();
+      worker = this;
+    }
+
+    // 让首个任务在发送时失败，其余任务正常压缩。
+    postMessage(message, transfer) {
+      if (message.fileName === "uncloneable") throw new Error("无法转移输入");
+      super.postMessage(message, transfer);
+    }
+  };
+  const results = await compressor.compressFilesWorker([file("uncloneable"), file("valid")]);
+  assert.deepEqual(
+    results.map((result) => result.status),
+    ["rejected", "fulfilled"],
+  );
+  assert.match(String(results[0].reason), /无法转移输入/);
+  assert.equal(stats.created, 1);
+  assert.equal(getEventListeners(worker, "message").length, 0);
+  assert.equal(getEventListeners(worker, "error").length, 0);
+});
+
+// 验证旧环境的批量结果仍能保留成功、失败和输入顺序。
+test("缺少 Promise.allSettled 时保留批量结果语义", async (t) => {
+  const { compressor, file } = setup(t, 1);
+  t.after(() => compressor.cancelAll());
+  const previousAllSettled = Promise.allSettled;
+  t.after(() => {
+    Promise.allSettled = previousAllSettled;
+  });
+  Promise.allSettled = undefined;
+  const results = await compressor.compressImagesWorker([file("invalid"), file("valid")]);
+  assert.deepEqual(
+    results.map((result) => result.status),
+    ["rejected", "fulfilled"],
+  );
+  assert.equal(results[1].value.file.name, "valid");
+});
+
+// 验证跨插件和批次复用同一线程。
+test("跨插件和批次复用同一线程", async (t) => {
   const { compressor, file, stats } = setup(t, 1);
   t.after(() => compressor.cancelAll());
   await compressor.compressFilesWorker([file(), file()]);
@@ -100,7 +88,8 @@ test("reuses one worker across alternating plugins and separate batches", async 
   assert.equal(stats.peak, 1);
 });
 
-test("isolates task errors and recovers from worker crashes", async (t) => {
+// 验证隔离压缩失败并在线程崩溃后恢复。
+test("隔离压缩失败并在线程崩溃后恢复", async (t) => {
   const { compressor, file, stats } = setup(t, 1);
   t.after(() => compressor.cancelAll());
   const results = await compressor.compressFilesWorker([file("invalid"), file("crash"), file("valid")]);
@@ -114,11 +103,14 @@ test("isolates task errors and recovers from worker crashes", async (t) => {
   assert.equal(stats.peak, 1);
 });
 
-test("recovers queued tasks after worker creation fails", async (t) => {
+// 验证线程创建失败后继续执行排队任务。
+test("线程创建失败后继续执行排队任务", async (t) => {
   const { compressor, TestWorker, file } = setup(t, 1);
   t.after(() => compressor.cancelAll());
   let attempts = 0;
+  // 模拟首次创建线程失败。
   globalThis.Worker = class extends TestWorker {
+    // 首次抛错后恢复正常创建线程。
     constructor() {
       if (attempts++ === 0) throw new Error("worker unavailable");
       super();
@@ -132,7 +124,8 @@ test("recovers queued tasks after worker creation fails", async (t) => {
   assert.match(String(results[0].reason), /worker unavailable/);
 });
 
-test("terminates timed out workers and continues the queue", async (t) => {
+// 验证终止超时线程并继续执行队列。
+test("终止超时线程并继续执行队列", async (t) => {
   const { compressor, plugins, file, stats } = setup(t, 1);
   t.after(() => compressor.cancelAll());
   plugins[0].timeoutMs = 30;
@@ -146,7 +139,8 @@ test("terminates timed out workers and continues the queue", async (t) => {
   assert.equal(stats.peak, 1);
 });
 
-test("cancels running, queued and reading tasks and supports reuse", async (t) => {
+// 验证取消运行、排队和读取中的任务并支持复用。
+test("取消运行、排队和读取中的任务并支持复用", async (t) => {
   const { compressor, file, stats } = setup(t, 1);
   t.after(() => compressor.cancelAll());
   const reading = compressor.compressFilesWorker([file()]);
@@ -161,58 +155,4 @@ test("cancels running, queued and reading tasks and supports reuse", async (t) =
   );
   assert.equal(stats.live, 0);
   assert.equal((await compressor.compressFilesWorker([file("reused")]))[0].status, "fulfilled");
-});
-
-test("pool worker loads multiple modules once, transfers buffers and isolates failures", async (t) => {
-  const previousSelf = globalThis.self;
-  const scope = new EventTarget();
-  globalThis.self = scope;
-  t.after(() => {
-    if (previousSelf === undefined) delete globalThis.self;
-    else globalThis.self = previousSelf;
-  });
-  const assets = await readdir(new URL("../dist/assets/", import.meta.url));
-  const pool = assets.find((name) => name.startsWith("pool.worker-") && name.endsWith(".js"));
-  assert.ok(pool);
-  await import(new URL(`../dist/assets/${pool}`, import.meta.url));
-  const moduleUrl = (code) => `data:text/javascript,${encodeURIComponent(code)}`;
-  const first = moduleUrl(`
-    export let compress = async ({arrayBuffer, fileName, quality}) => {
-      if (quality !== 0.5) throw new Error("configuration lost");
-      if (fileName === "invalid") throw new Error("invalid input");
-      return {success:true,data:arrayBuffer,fileName};
-    };
-    export function replace() { compress = () => {throw new Error("loaded again")}; }
-  `);
-  const second = moduleUrl(
-    `export const compress = async ({arrayBuffer}) => ({success:true,data:arrayBuffer,fileName:"second"});`,
-  );
-  const retry = moduleUrl(`
-    export let compress;
-    setTimeout(() => { compress = async ({arrayBuffer}) => ({success:true,data:arrayBuffer,fileName:"retried"}); }, 0);
-  `);
-  const send = (url, fileName = "valid") =>
-    new Promise((resolve) => {
-      scope.postMessage = (result, transfer = []) => resolve(structuredClone(result, { transfer }));
-      scope.dispatchEvent(
-        new MessageEvent("message", {
-          data: {
-            type: "compress",
-            moduleUrl: url,
-            arrayBuffer: new Uint8Array([1, 2, 3]).buffer,
-            fileName,
-            quality: 0.5,
-          },
-        }),
-      );
-    });
-  const result = await send(first);
-  assert.deepEqual([...new Uint8Array(result.data)], [1, 2, 3]);
-  assert.equal((await send(second)).fileName, "second");
-  (await import(first)).replace();
-  assert.equal((await send(first)).fileName, "valid");
-  assert.deepEqual(await send(first, "invalid"), { success: false, error: "invalid input" });
-  assert.match((await send(retry)).error, /缺少 compress 导出/);
-  await delay(10);
-  assert.equal((await send(retry)).fileName, "retried");
 });

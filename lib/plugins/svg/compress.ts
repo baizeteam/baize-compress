@@ -1,6 +1,8 @@
 import { optimize } from "svgo/browser";
 import type { CompressPayload, CompressResult } from "../../types";
+import { createCompressResult } from "../../utils";
 
+// 使用 SVGO 优化 SVG 内容并保留体积更小的数据。
 export async function compress({
   arrayBuffer,
   fileName,
@@ -19,10 +21,5 @@ export async function compress({
     compressedData.byteOffset + compressedData.byteLength,
   );
 
-  const originalSize = arrayBuffer.byteLength;
-  if (compressedBuffer.byteLength >= originalSize) {
-    return { success: true, data: arrayBuffer, fileName, fileType };
-  }
-
-  return { success: true, data: compressedBuffer, fileName, fileType };
+  return createCompressResult({ arrayBuffer, fileName, fileType }, compressedBuffer);
 }

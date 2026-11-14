@@ -1,4 +1,4 @@
-# Logs
+# 日志
 logs
 *.log
 npm-debug.log*
@@ -15,7 +15,7 @@ dist-page
 *.local
 .turbo
 
-# Editor directories and files
+# 编辑器目录和文件
 !.vscode/extensions.json
 .idea
 .DS_Store

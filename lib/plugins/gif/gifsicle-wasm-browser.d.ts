@@ -13,6 +13,7 @@ declare module "gifsicle-wasm-browser" {
     tool: {
       workerLocalUrl: string;
     };
+    // 调用 gifsicle 自带的 Worker 压缩输入文件。
     run(options: GifsicleRunOptions): Promise<File[] | null>;
   }
 

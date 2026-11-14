@@ -1,91 +1,10 @@
 # baize-compress
 
-## Unreleased
+## 0.0.1
 
-- 独立为 baize-compress 包，统一提供图片和音视频压缩。
-- 新增基于 Mediabunny / WebCodecs 的 media 插件，支持质量、码率、视频尺寸和音频采样设置。
-- 新增 compressFilesWorker，支持插件任务超时，并修复任务取消和 Worker 加载问题。
-- 升级至 Vite 8、TypeScript 7，使用 oxfmt 替代 Prettier 配置，开发环境要求 Node.js 20.19+ / 22.12+。
-- 内置插件封装压缩模块地址，移除使用者的 `moduleUrl` 配置及 `plugins/*-compress.js` 导出。
-- 自定义插件声明压缩模块入口，模块导出 `compress`；插件无需创建 Worker。
-- 通用线程池按需创建 Worker，跨插件复用线程，并在线程内按需加载、缓存压缩模块，全部插件共用 `workerNum` 并发上限。
-
-## 3.0.1
-
-### Patch Changes
-
-- 修复 Next.js / Turbopack 下插件 `moduleUrl` 变成 `file://`，worker 无法加载压缩模块的问题。内置插件支持自行传入 `moduleUrl`。
-
-## 3.0.0
-
-### Major Changes
-
-- 重构为插件模式。新增基于 gifsicle-wasm-browser 的 gif 压缩插件，`workerNum` 改为全部插件共用的线程数，自定义插件通过 `func` 指定压缩函数并由共用 worker 加载。
-
-## 2.1.1
-
-### Patch Changes
-
-- 修复打包异常问题
-
-## 2.1.0
-
-### Minor Changes
-
-- 添加 svg 压缩
-
-## 2.0.2
-
-- 修复类型异常问题
-
-## 2.0.1
-
-- 修复类型异常问题
-
-## 2.0.0
-
-- 重构，支持多实例，更容易管理
-
-## 1.0.1
-
-- 新增 `ImageCompressor` 类并支持通过 `getInstance(workerNum)` 创建单例、初始化时设定 worker 数量
-- 移除 `CompressOptions.workerNum`，请在创建单例时传入 worker 数量
-- 保留函数式 API：`compressImagesWorker`、`cancelAllCompressWorker` 仍可用（不再支持 `workerNum`）
-
-## 1.0.0
-
-### Breaking Changes
-
-- 🔄 **返回类型调整**: `compressImageWorker` 和 `compressImagesWorker` 函数现在返回 `CompressBackInfo` 类型，包含压缩信息和文件
-- 📊 **压缩信息增强**: 返回数据现在包含压缩率（rate）、压缩耗时（time）、原始大小（originalSize）、压缩后大小（compressedSize）信息
-
-### Features
-
-- ✨ **压缩统计**: 新增压缩率计算，显示压缩前后文件大小变化百分比
-- ⏱️ **性能监控**: 新增压缩耗时统计，精确到毫秒级别
-- 📏 **文件大小对比**: 新增原始文件大小和压缩后文件大小显示，支持 KB 单位
-- 🎯 **类型安全**: 提供完整的 TypeScript 类型定义支持
-
-## 0.0.7
-
-修复并发压缩问题
-
-## 0.0.6
-
-移除 workerpool 修复使用异常报错问题
-
-## 0.0.5
-
-### Performance Improvements
-
-- 🚀 **重大性能优化**: 使用 Transferable Objects 替代 localforage 进行图片数据传输
-- ⚡ **零拷贝传输**: 图片数据通过 ArrayBuffer 直接传输，避免数据复制
-- 🔄 **双向优化**: Worker 返回 ArrayBuffer 数据，主线程重新构造 File 对象，避免 File 对象序列化开销
-- 💾 **内存优化**: 减少内存占用和垃圾回收压力
-- 🔧 **依赖优化**: 移除 localforage 依赖，减少包体积
-
-## 0.0.4
-
-### Patch Changes
-
-- 添加 png 和 webp 图片的压缩适配
+- 统一提供图片、音频和视频压缩。
+- 内置 JPEG / WebP、PNG、SVG、GIF 以及音视频压缩插件。
+- 支持按需引入插件和自定义压缩模块，所有插件共用 Worker 池，按需加载并缓存压缩函数。
+- 提供批量文件压缩、压缩统计、任务超时与取消，支持跨插件和批次复用线程。
+- 从源码生成公共类型声明，提供文件预览和压缩结果对比示例。
+- 配置类型检查、格式检查和自动化测试，使用 Vite、TypeScript 和 oxfmt 构建与维护。

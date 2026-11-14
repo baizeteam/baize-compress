@@ -1,3 +1,2 @@
-import type { CompressPlugin, CompressPluginConfig } from "../index";
-
-export declare function jpegWebp(config?: CompressPluginConfig): CompressPlugin;
+// 从源码生成的声明导出插件及配置类型。
+export * from "../dist/types/plugins/jpeg-webp/index.js";

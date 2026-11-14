@@ -6,14 +6,14 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
     "skipLibCheck": true,
     "types": ["vite/client", "node"],
-    /* Bundler mode */
+    // 使用打包器解析模块。
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    /* Linting */
+    // 启用严格类型和未使用代码检查。
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

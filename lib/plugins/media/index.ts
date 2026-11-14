@@ -1,4 +1,5 @@
-import type { CompressPlugin } from "../../types";
+import type { CompressPlugin } from "../../types.js";
+import { validateTimeout } from "../../utils";
 import moduleUrl from "./compress.ts?worker&url";
 
 export interface MediaConfig {
@@ -23,6 +24,7 @@ export interface MediaConfig {
   timeoutMs?: number;
 }
 
+// 创建音视频压缩插件并校验转码参数。
 export function media(config: MediaConfig = {}): CompressPlugin {
   const { timeoutMs = 600_000, ...options } = config;
   if (
@@ -50,11 +52,10 @@ export function media(config: MediaConfig = {}): CompressPlugin {
   if (options.frameRate !== undefined && (!Number.isFinite(options.frameRate) || options.frameRate <= 0)) {
     throw new Error("media frameRate 必须是正数");
   }
-  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
-    throw new Error("media timeoutMs 必须是 1-2147483647 之间的整数");
-  }
+  validateTimeout(timeoutMs, "media");
   return {
     name: "media",
+    // 匹配音频、视频和 Ogg 容器的 MIME 类型。
     matches: (fileType) => /^(audio|video)\//i.test(fileType) || fileType === "application/ogg",
     moduleUrl,
     timeoutMs,

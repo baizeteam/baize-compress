@@ -1,4 +1,4 @@
-import type { CompressPlugin, CompressPluginConfig } from "../../types";
+import type { CompressPlugin, CompressPluginConfig } from "../../types.js";
 import moduleUrl from "./compress.ts?worker&url";
 
 export interface GifConfig extends CompressPluginConfig {
@@ -6,9 +6,11 @@ export interface GifConfig extends CompressPluginConfig {
   lossy?: number;
 }
 
+// 创建 GIF 压缩插件并设置默认质量和优化等级。
 export function gif(config?: GifConfig): CompressPlugin {
   return {
     name: "gif",
+    // 匹配插件支持的图片 MIME 类型。
     matches: (fileType: string) => fileType === "image/gif",
     moduleUrl,
     defaultConfig: {
