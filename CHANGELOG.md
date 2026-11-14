@@ -5,6 +5,10 @@
 - 独立为 baize-compress 包，统一提供图片和音视频压缩。
 - 新增基于 Mediabunny / WebCodecs 的 media 插件，支持质量、码率、视频尺寸和音频采样设置。
 - 新增 compressFilesWorker，支持插件任务超时，并修复任务取消和 Worker 加载问题。
+- 升级至 Vite 8、TypeScript 7，使用 oxfmt 替代 Prettier 配置，开发环境要求 Node.js 20.19+ / 22.12+。
+- 内置插件封装压缩模块地址，移除使用者的 `moduleUrl` 配置及 `plugins/*-compress.js` 导出。
+- 自定义插件声明压缩模块入口，模块导出 `compress`；插件无需创建 Worker。
+- 通用线程池按需创建 Worker，跨插件复用线程，并在线程内按需加载、缓存压缩模块，全部插件共用 `workerNum` 并发上限。
 
 ## 3.0.1
 

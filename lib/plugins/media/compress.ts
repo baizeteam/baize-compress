@@ -45,10 +45,10 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
       format === "mp4"
         ? new Mp4OutputFormat({ fastStart: "in-memory" })
         : format === "webm"
-        ? new WebMOutputFormat()
-        : format === "ogg"
-        ? new OggOutputFormat()
-        : undefined;
+          ? new WebMOutputFormat()
+          : format === "ogg"
+            ? new OggOutputFormat()
+            : undefined;
     if (!outputFormat) throw new Error(`不支持的输出格式：${format}`);
     const target = new BufferTarget();
     output = new Output({ format: outputFormat, target });
@@ -110,5 +110,3 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
     }
   }
 }
-
-export { compress as func };

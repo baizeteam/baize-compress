@@ -154,108 +154,79 @@ try {
 
 也可以把 `media()` 和图片插件放在同一个 `plugins` 数组中。原有 `compressImagesWorker()` 兼容音视频，推荐新代码使用 `compressFilesWorker()`。
 
-| 参数                              | 默认值       | 说明                                                                          |
-| --------------------------------- | ------------ | ----------------------------------------------------------------------------- |
-| `quality`                         | `0.5`        | 0-1，越大质量越高；音视频轨道均重新编码                                       |
-| `format`                          | 自动选择     | WebM / Ogg 输入保留容器，其他输入输出 MP4；MP4 纯音频文件使用 `.m4a`          |
-| `videoCodec` / `audioCodec`       | 自动选择     | 浏览器可编码、容器可容纳的编码；可指定 `avc`、`vp9`、`aac`、`opus` 等         |
-| `videoBitrate` / `audioBitrate`   | 未设置       | bit/s，覆盖对应轨道的 `quality`                                               |
-| `maxWidth` / `maxHeight`          | 原始尺寸     | 保持比例缩小，不放大，尺寸向下对齐偶数（至少 2）                              |
-| `frameRate`                       | 原始帧率     | 输出视频帧率                                                                  |
-| `sampleRate` / `numberOfChannels` | 原始值       | 音频采样率（Hz）和声道数                                                      |
-| `keepOriginalIfLarger`            | `true`       | 结果没有变小时返回原文件，保留原文件名和 MIME；必须输出指定格式时设为 `false` |
-| `timeoutMs`                       | `600000`     | 单文件任务超时，包含模块加载和转码时间                                        |
-| `moduleUrl`                       | 插件内置地址 | 覆盖 Worker 加载模块地址                                                      |
+| 参数                              | 默认值   | 说明                                                                          |
+| --------------------------------- | -------- | ----------------------------------------------------------------------------- |
+| `quality`                         | `0.5`    | 0-1，越大质量越高；音视频轨道均重新编码                                       |
+| `format`                          | 自动选择 | WebM / Ogg 输入保留容器，其他输入输出 MP4；MP4 纯音频文件使用 `.m4a`          |
+| `videoCodec` / `audioCodec`       | 自动选择 | 浏览器可编码、容器可容纳的编码；可指定 `avc`、`vp9`、`aac`、`opus` 等         |
+| `videoBitrate` / `audioBitrate`   | 未设置   | bit/s，覆盖对应轨道的 `quality`                                               |
+| `maxWidth` / `maxHeight`          | 原始尺寸 | 保持比例缩小，不放大，尺寸向下对齐偶数（至少 2）                              |
+| `frameRate`                       | 原始帧率 | 输出视频帧率                                                                  |
+| `sampleRate` / `numberOfChannels` | 原始值   | 音频采样率（Hz）和声道数                                                      |
+| `keepOriginalIfLarger`            | `true`   | 结果没有变小时返回原文件，保留原文件名和 MIME；必须输出指定格式时设为 `false` |
+| `timeoutMs`                       | `600000` | 单文件任务超时，包含模块加载和转码时间                                        |
 
 匹配 `audio/*`、`video/*` 和 `application/ogg` MIME。MIME 为空的 `File` 需先设置正确类型。默认只保留主要视频轨道和主要音频轨道；其他音轨、字幕不会进入输出。不内置额外 WASM 编码器，例如 MP3 输入可以压缩到 M4A / WebM / Ogg，MP3 输出编码取决于运行环境。
 
 音视频不受图片的 50 MB 限制，但输入、输出均在内存中缓冲，建议 `workerNum: 1` 或 `2`，避免同时转码多个大文件耗尽内存。指定格式时应检查返回 `File` 的名称和 MIME，压缩未变小可能返回原文件。
 
-### Worker 模块地址
+### Worker 加载与复用
 
-每个内置插件都可以传 `moduleUrl`，用来替换 worker 加载压缩模块的地址。不传时使用包内自带的地址。打包器没有改写包内地址、worker 报 `Failed to fetch dynamically imported module` 时，在业务代码里自己填：
+内置插件已封装压缩模块入口，使用时只需传压缩参数，无需配置资源地址或复制脚本。
 
-```typescript
-import { gif } from "baize-compress/plugins/gif";
+所有插件共用通用 Worker 池，线程按任务数量创建，总数不超过 `workerNum`。每个 Worker 首次处理一种格式时加载对应的压缩模块，并缓存压缩函数；切换格式时复用线程和已加载模块。例如 `workerNum: 1` 时，JPEG → PNG → JPEG 全程只使用一个 Worker。
 
-gif({
-  moduleUrl: new URL("baize-compress/plugins/gif-compress.js", import.meta.url).href,
-});
-```
-
-对应文件：
-
-| 插件       | 地址                                           |
-| ---------- | ---------------------------------------------- |
-| `jpegWebp` | `baize-compress/plugins/jpeg-webp-compress.js` |
-| `png`      | `baize-compress/plugins/png-compress.js`       |
-| `svg`      | `baize-compress/plugins/svg-compress.js`       |
-| `gif`      | `baize-compress/plugins/gif-compress.js`       |
-| `media`    | `baize-compress/plugins/media-compress.js`     |
-
-`new URL` 要写在业务代码里，这样打包器才会把文件发到站点上。也可以填已经部署好的地址，比如 `gif({ moduleUrl: "/vendor/gif-compress.js" })`。
+压缩模块按实际任务加载，未使用的插件不会自动进入线程池。只有取消任务、线程异常或超时时才终止 Worker；普通文件压缩失败不影响后续任务。`cancelAll()` 后再次提交任务会创建新线程。
 
 ## 自定义插件
 
-`workerNum` 是全部插件共用的线程数。比如设成 4，不管注册了几种格式，都只有 4 个 worker。空闲的会复用，都在忙就排队。插件不用自己开线程，只要匹配文件类型，并用 `func` 指定压缩函数。
+插件提供文件类型匹配、压缩模块入口和默认参数。入口地址是插件作者封装的内部元数据，业务使用者只配置压缩参数。多个插件都能匹配同一个类型时，使用先注册的那个。
 
-多个插件都能匹配同一个类型时，使用先注册的那个。`name` 不要和已注册插件重复。
-
-`func` 写在插件同一个模块里即可，文件名不限。共用 worker 会按 `moduleUrl` 加载这个模块，再调用其中的 `func`。这个文件会被 worker 再执行一次，不要在里面启动页面。
-
-Vite 里 `moduleUrl` 写 `import.meta.url`。Next.js（Turbopack）和 Webpack 会把裸的 `import.meta.url` 变成 `file://` 地址，浏览器里的 worker 拉不到，压缩会报 `Failed to fetch dynamically imported module`。这时要写成 `new URL("./压缩模块.js", import.meta.url).href`，让打包器把该文件发到站点上。这个文件必须是浏览器能直接 `import()` 的 ESM。
+例如，提供一个压缩 JSON 空白的插件。插件入口 `compact-json.ts`：
 
 ```typescript
-import type { CompressPayload, CompressPlugin, CompressResult } from "baize-compress";
+import type { CompressPlugin } from "baize-compress";
 
-async function compressAvif({
-  arrayBuffer,
-  fileName,
-  fileType,
-  quality,
-  colors,
-}: CompressPayload): Promise<CompressResult> {
-  const compressed = await encodeAvif(arrayBuffer, { quality, colors });
-  const data = compressed.byteLength < arrayBuffer.byteLength ? compressed : arrayBuffer;
-  return { success: true, data, fileName, fileType };
-}
-
-async function encodeAvif(buffer: ArrayBuffer, _options: { quality: number; colors: number }) {
-  return buffer;
-}
-
-export function myFormat(config?: { quality?: number; colors?: number }): CompressPlugin {
+export function compactJson(): CompressPlugin {
   return {
-    name: "my-format",
-    matches: (fileType) => fileType === "image/avif",
-    func: compressAvif,
-    moduleUrl: import.meta.url,
-    defaultConfig: {
-      quality: config?.quality ?? 0.8,
-      colors: config?.colors ?? 128,
-    },
+    name: "compact-json",
+    matches: (fileType) => fileType === "application/json",
+    moduleUrl: new URL("./json.compress.js", import.meta.url).href,
+    defaultConfig: {},
   };
 }
 ```
 
-| 字段            | 说明                                                                                                  |
-| --------------- | ----------------------------------------------------------------------------------------------------- |
-| `name`          | 插件名称                                                                                              |
-| `matches`       | 返回 `true` 的文件会进这个插件                                                                        |
-| `func`          | 压缩函数                                                                                              |
-| `moduleUrl`     | 压缩模块地址。Vite 用 `import.meta.url`；Next/Webpack 用 `new URL("./文件.js", import.meta.url).href` |
-| `defaultConfig` | 默认参数，会和文件数据一起传给 `func`                                                                 |
-| `timeoutMs`     | 单任务超时（毫秒），默认 30000；`media` 插件默认 600000                                               |
+独立压缩模块 `json.compress.js`：
 
-`func` 收到的参数包含 `arrayBuffer`、`fileName`、`fileType`，以及 `defaultConfig` 里的字段。返回 `{ success: true, data, fileName, fileType }`。`data` 是压缩后的 `ArrayBuffer`。压缩后没有变小时，把原始 `arrayBuffer` 原样返回。抛错会当成该文件失败。可用插件的 `timeoutMs` 调整超时。
+```javascript
+export async function compress({ arrayBuffer, fileName, fileType }) {
+  const value = JSON.parse(new TextDecoder().decode(arrayBuffer));
+  const compressed = new TextEncoder().encode(JSON.stringify(value));
+  const data = compressed.byteLength < arrayBuffer.byteLength ? compressed.buffer : arrayBuffer;
+  return { success: true, data, fileName, fileType };
+}
+```
+
+压缩模块必须是浏览器可直接加载的独立 ESM，导出 `compress` 函数。若使用 TypeScript 或第三方编码库，应在发布插件前将压缩模块及依赖一起打包。该模块在 Worker 内执行，不要在其中启动页面或注册 Worker 消息监听器。
+
+| 字段            | 说明                                                |
+| --------------- | --------------------------------------------------- |
+| `name`          | 插件名称                                            |
+| `matches`       | 返回 `true` 的文件会进这个插件                      |
+| `moduleUrl`     | 插件作者封装的压缩模块入口，使用者无需配置          |
+| `defaultConfig` | 默认参数，会和文件数据一起传给压缩函数              |
+| `timeoutMs`     | 单任务超时（毫秒），默认 30000；`media` 默认 600000 |
+
+`compress` 收到的参数包含 `arrayBuffer`、`fileName`、`fileType`，以及 `defaultConfig` 里的字段。返回 `{ success: true, data, fileName, fileType }`。`data` 是压缩后的 `ArrayBuffer`。压缩后没有变小时，把原始 `arrayBuffer` 原样返回。抛错会当成该文件失败。
 
 ```typescript
 const compressor = new ImageCompressor({
   workerNum: 4,
-  plugins: [myFormat(), gif()],
+  plugins: [compactJson(), gif()],
 });
 
-await compressor.compressImagesWorker(files);
+await compressor.compressFilesWorker(files);
 ```
 
 ## API
@@ -294,16 +265,20 @@ compressImagesWorker(files: File[]): Promise<PromiseSettledResult<CompressBackIn
 
 ## 本地开发与验证
 
-在仓库根目录执行：
+使用 Node.js 20.19+ 或 22.12+（推荐 Node.js 24）。在仓库根目录执行：
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-构建验证：
+项目使用 Vite 8、TypeScript 7 和 oxfmt。类型检查、格式化与构建验证：
 
 ```sh
+pnpm typecheck
+pnpm format
+pnpm format:check
+pnpm test
 pnpm build
 pnpm build:page
 ```

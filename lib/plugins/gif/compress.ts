@@ -40,11 +40,10 @@ function getGifsicleHandler(): GifsicleHandler {
     throw new Error("gifsicle worker 脚本不可用");
   }
 
-  // gifsicle.run() 会再创建一个 worker。压缩已经跑在共用 worker 里，直接执行它自带的 wasm 脚本。
-  const factory = new Function(
-    "postMessage",
-    `var onmessage;\n${script}\nreturn onmessage;`,
-  ) as (postMessage: (data: unknown) => void) => GifsicleHandler;
+  // gifsicle.run() 会再创建一个 worker。压缩已经在线程池内，直接执行它自带的 wasm 脚本。
+  const factory = new Function("postMessage", `var onmessage;\n${script}\nreturn onmessage;`) as (
+    postMessage: (data: unknown) => void,
+  ) => GifsicleHandler;
 
   gifsicleHandler = factory((data: unknown) => {
     if (data === undefined) return;
@@ -107,5 +106,3 @@ export async function compress({
 
   return { success: true, data: compressedData, fileName, fileType };
 }
-
-export { compress as func };

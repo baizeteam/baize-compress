@@ -17,5 +17,3 @@ export async function compress({ arrayBuffer, fileName, fileType, quality }: Com
 
   return { success: true, data: await compressedBlob.arrayBuffer(), fileName, fileType };
 }
-
-export { compress as func };

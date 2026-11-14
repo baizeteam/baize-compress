@@ -20,7 +20,6 @@ export interface MediaConfig {
   keepOriginalIfLarger?: boolean;
   /** 单个任务的超时时间（毫秒），默认 10 分钟 */
   timeoutMs?: number;
-  moduleUrl?: string;
 }
 
 export declare function media(config?: MediaConfig): CompressPlugin;

@@ -1,5 +1,5 @@
 import type { CompressPlugin } from "../../types";
-import { compress } from "./compress";
+import moduleUrl from "./compress.ts?worker&url";
 
 export interface MediaConfig {
   /** 0-1，默认 0.5；对应轨道设置 bitrate 时忽略 quality */
@@ -21,12 +21,10 @@ export interface MediaConfig {
   keepOriginalIfLarger?: boolean;
   /** 单个任务的超时时间（毫秒），默认 10 分钟 */
   timeoutMs?: number;
-  moduleUrl?: string;
 }
 
 export function media(config: MediaConfig = {}): CompressPlugin {
   const { timeoutMs = 600_000, ...options } = config;
-  delete options.moduleUrl;
   if (
     options.quality !== undefined &&
     (!Number.isFinite(options.quality) || options.quality < 0 || options.quality > 1)
@@ -58,8 +56,7 @@ export function media(config: MediaConfig = {}): CompressPlugin {
   return {
     name: "media",
     matches: (fileType) => /^(audio|video)\//i.test(fileType) || fileType === "application/ogg",
-    func: compress,
-    moduleUrl: config?.moduleUrl ?? import.meta.url,
+    moduleUrl,
     timeoutMs,
     defaultConfig: { quality: 0.5, keepOriginalIfLarger: true, ...options },
   };
