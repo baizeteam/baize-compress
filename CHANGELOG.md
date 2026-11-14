@@ -1,5 +1,10 @@
 # baize-compress
 
+## 1.0.1
+
+- 音视频压缩默认保留原容器、文件名和 MIME，MOV 不再自动转为 MP4。
+- 扩展 `format` 参数，支持显式选择 MOV、MKV、MP3、WAV、AAC、FLAC、MPEG-TS 等输出容器。
+
 ## 1.0.0
 
 - 统一提供图片、音频和视频压缩。
