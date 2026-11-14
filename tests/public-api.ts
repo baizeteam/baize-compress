@@ -13,7 +13,7 @@ import { media, type MediaConfig } from "baize-compress/plugins/media";
 
 const svgConfig: SvgConfig = { floatPrecision: 6, svgoPlugins: ["preset-default"] };
 const gifConfig: GifConfig = { quality: 0.75, optimize: 1, lossy: 40 };
-const mediaConfig: MediaConfig = { format: "webm", maxHeight: 720, audioCodec: "opus" };
+const mediaConfig: MediaConfig = { format: "mov", maxHeight: 720, audioCodec: "aac" };
 const plugins: CompressPlugin[] = [jpegWebp(), png(), svg(svgConfig), gif(gifConfig), media(mediaConfig)];
 const options: ImageCompressorOptions = { workerNum: 2, plugins };
 const compressor = new ImageCompressor(options);

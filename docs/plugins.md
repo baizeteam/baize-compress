@@ -28,28 +28,24 @@ gif({ quality: 0.75, optimize: 1, lossy: 40 });
 ```typescript
 import { media } from "baize-compress/plugins/media";
 
-media({
-  quality: 0.5,
-  format: "webm",
-  maxWidth: 1280,
-  maxHeight: 720,
-  keepOriginalIfLarger: false,
-});
+media();
 ```
 
-| 参数                              | 默认值   | 说明                                                                                                             |
-| --------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `quality`                         | `0.5`    | 0–1，越大质量越高                                                                                                |
-| `format`                          | 自动选择 | WebM / Ogg 输入保留容器，其他输入输出 MP4；MP4 纯音频使用 `.m4a`，Ogg 仅支持纯音频                               |
-| `videoCodec` / `audioCodec`       | 自动选择 | 视频支持 `avc`、`hevc`、`vp8`、`vp9`、`av1`；音频支持 `aac`、`opus`、`mp3`、`vorbis`、`flac`，取决于浏览器和容器 |
-| `videoBitrate` / `audioBitrate`   | 未设置   | bit/s，覆盖对应轨道的 `quality`                                                                                  |
-| `maxWidth` / `maxHeight`          | 原始尺寸 | 等比缩小，不放大，尺寸向下对齐偶数（至少 2）                                                                     |
-| `frameRate`                       | 原始帧率 | 输出视频帧率                                                                                                     |
-| `sampleRate` / `numberOfChannels` | 原始值   | 音频采样率（Hz）和声道数                                                                                         |
-| `keepOriginalIfLarger`            | `true`   | 结果未变小时保留原文件，包括文件名和 MIME                                                                        |
-| `timeoutMs`                       | `600000` | 单文件超时（毫秒），包含模块加载和转码                                                                           |
+| 参数                              | 默认值     | 说明                                                                                                                                                     |
+| --------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quality`                         | `0.5`      | 0–1，越大质量越高                                                                                                                                        |
+| `format`                          | 保留原格式 | 按文件内容识别并保留原容器、文件名和 MIME。可显式指定 `mp4`、`mov`、`webm`、`mkv`、`mp3`、`wav`、`ogg`、`aac`、`flac`、`ts`；MP4 纯音频转换输出为 `.m4a` |
+| `videoCodec` / `audioCodec`       | 自动选择   | 视频支持 `avc`、`hevc`、`vp8`、`vp9`、`av1`；音频支持 `aac`、`opus`、`mp3`、`vorbis`、`flac`，取决于浏览器和容器                                         |
+| `videoBitrate` / `audioBitrate`   | 未设置     | bit/s，覆盖对应轨道的 `quality`                                                                                                                          |
+| `maxWidth` / `maxHeight`          | 原始尺寸   | 等比缩小，不放大，尺寸向下对齐偶数（至少 2）                                                                                                             |
+| `frameRate`                       | 原始帧率   | 输出视频帧率                                                                                                                                             |
+| `sampleRate` / `numberOfChannels` | 原始值     | 音频采样率（Hz）和声道数                                                                                                                                 |
+| `keepOriginalIfLarger`            | `true`     | 结果未变小时保留原文件，包括文件名和 MIME                                                                                                                |
+| `timeoutMs`                       | `600000`   | 单文件超时（毫秒），包含模块加载和转码                                                                                                                   |
 
-默认仅输出主要视频轨道和主要音频轨道，其他音轨和字幕会被丢弃。不支持的编解码会返回该文件失败，不会静默丢失音轨；不内置额外 WASM 编码器。
+默认保留容器格式，例如 MOV 压缩后仍为 MOV，M4A 仍为 M4A；内部音视频编码可能改变。无法保留的容器或不支持的编解码会返回该文件失败，不会自动转为 MP4；不内置额外 WASM 编码器。WAV 等无压缩格式仅调低 `quality` 不一定能减小体积，可按需调整采样率或声道数。
+
+默认仅输出主要视频轨道和主要音频轨道，其他音轨和字幕会被丢弃；不会静默丢失不支持的主要音视频轨道。显式转换容器时可设置 `keepOriginalIfLarger: false`，确保结果未变小时也输出指定格式。
 
 ## 自定义插件
 

@@ -5,8 +5,8 @@ import moduleUrl from "./compress.ts?worker&url";
 export interface MediaConfig {
   /** 0-1，默认 0.5；对应轨道设置 bitrate 时忽略 quality */
   quality?: number;
-  /** 默认保留 WebM / Ogg 容器，其他输入输出为 MP4（纯音频为 M4A） */
-  format?: "mp4" | "webm" | "ogg";
+  /** 默认保留原容器、文件名和 MIME；显式指定时转换容器，MP4 纯音频输出为 M4A */
+  format?: "mp4" | "mov" | "webm" | "mkv" | "mp3" | "wav" | "ogg" | "aac" | "flac" | "ts";
   videoCodec?: "avc" | "hevc" | "vp8" | "vp9" | "av1";
   audioCodec?: "aac" | "opus" | "mp3" | "vorbis" | "flac";
   /** 比特率，单位 bit/s */

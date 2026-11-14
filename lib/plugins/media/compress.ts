@@ -1,17 +1,47 @@
 import {
+  ADTS,
   ALL_FORMATS,
+  AdtsOutputFormat,
   BufferSource,
   BufferTarget,
   Conversion,
+  FLAC,
+  FlacOutputFormat,
   Input,
+  MATROSKA,
+  MkvOutputFormat,
+  MovOutputFormat,
+  MP3,
+  MP4,
+  MPEG_TS,
+  Mp3OutputFormat,
   Mp4OutputFormat,
+  MpegTsOutputFormat,
+  OGG,
   OggOutputFormat,
   Output,
+  QTFF,
   Quality,
+  WAVE,
+  WEBM,
+  WavOutputFormat,
   WebMOutputFormat,
 } from "mediabunny";
 import type { CompressPayload, CompressResult } from "../../types";
 import type { MediaConfig } from "./index";
+
+const FORMATS = [
+  [MP4, "mp4", Mp4OutputFormat],
+  [QTFF, "mov", MovOutputFormat],
+  [WEBM, "webm", WebMOutputFormat],
+  [MATROSKA, "mkv", MkvOutputFormat],
+  [MP3, "mp3", Mp3OutputFormat],
+  [WAVE, "wav", WavOutputFormat],
+  [OGG, "ogg", OggOutputFormat],
+  [ADTS, "aac", AdtsOutputFormat],
+  [FLAC, "flac", FlacOutputFormat],
+  [MPEG_TS, "ts", MpegTsOutputFormat],
+] as const;
 
 // 使用浏览器编解码能力转码音视频并释放转换资源。
 export async function compress(payload: CompressPayload): Promise<CompressResult> {
@@ -40,17 +70,23 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
     const audioTrack = await input.getPrimaryAudioTrack();
     if (!videoTrack && !audioTrack) throw new Error("文件中没有可压缩的音视频轨道");
 
-    const format = requestedFormat ?? (/webm/i.test(fileType) ? "webm" : /ogg/i.test(fileType) ? "ogg" : "mp4");
-    if (format === "ogg" && videoTrack) throw new Error("Ogg 输出仅支持纯音频，请使用 mp4 或 webm");
-    const outputFormat =
-      format === "mp4"
-        ? new Mp4OutputFormat({ fastStart: "in-memory" })
-        : format === "webm"
-          ? new WebMOutputFormat()
-          : format === "ogg"
-            ? new OggOutputFormat()
-            : undefined;
-    if (!outputFormat) throw new Error(`不支持的输出格式：${format}`);
+    const inputFormat = await input.getFormat();
+    // 按实际容器保留格式，显式指定 format 时才转换容器。
+    const definition = FORMATS.find(([source, format]) =>
+      requestedFormat === undefined ? source === inputFormat : format === requestedFormat,
+    );
+    if (!definition) {
+      throw new Error(
+        requestedFormat === undefined
+          ? `无法保留输入格式：${inputFormat.name}，请显式指定支持的输出格式`
+          : `不支持的输出格式：${requestedFormat}`,
+      );
+    }
+    const [, format, Format] = definition;
+    const outputFormat = new Format();
+    if (videoTrack && outputFormat.getSupportedVideoCodecs().length === 0) {
+      throw new Error(`${format} 输出仅支持纯音频，请选择支持视频的容器`);
+    }
     const target = new BufferTarget();
     output = new Output({ format: outputFormat, target });
 
@@ -95,13 +131,13 @@ export async function compress(payload: CompressPayload): Promise<CompressResult
     if (keepOriginalIfLarger && data.byteLength >= arrayBuffer.byteLength) {
       return { success: true, data: arrayBuffer, fileName, fileType };
     }
-    const extension = format === "mp4" && !videoTrack ? "m4a" : format;
+    const extension = format === "mp4" && !videoTrack ? ".m4a" : outputFormat.fileExtension;
     const baseName = fileName.replace(/\.[^.]+$/, "");
     return {
       success: true,
       data,
-      fileName: `${baseName}.${extension}`,
-      fileType: `${videoTrack ? "video" : "audio"}/${format}`,
+      fileName: requestedFormat === undefined ? fileName : `${baseName}${extension}`,
+      fileType: requestedFormat === undefined ? fileType : (await output.getMimeType()).split(";")[0].trim(),
     };
   } finally {
     try {

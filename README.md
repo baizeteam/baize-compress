@@ -76,7 +76,7 @@ try {
 - 使用支持 ESM Worker 的现代浏览器；JPEG / WebP 需要 OffscreenCanvas，音视频需要 HTTPS 或 localhost 及 WebCodecs 支持。
 - 文件需具有正确的 MIME 类型。图片最大 50 MB，音视频不设固定上限，但在内存中处理，建议音视频并发设为 `1` 或 `2`。
 - 默认在结果未变小时保留原文件；APNG 始终保留原始动画数据。音视频必须转换到指定格式时，设置 `keepOriginalIfLarger: false`。
-- 音视频默认仅保留主要视频轨道和主要音频轨道；支持的编解码取决于浏览器，不支持时返回该文件失败。
+- 音视频默认保留原容器格式、文件名和 MIME（MOV 仍为 MOV），显式设置 `format` 时才转换容器；仅保留主要视频轨道和主要音频轨道。支持的编解码取决于浏览器，不支持时返回该文件失败。
 - 图片任务默认超时 30 秒，音视频 10 分钟。取消会立即结束任务等待，已开始的原生文件读取会自行完成并丢弃结果。
 - 启用 CSP 时允许同源脚本和 Worker；GIF 还需 `script-src 'wasm-unsafe-eval'`，音视频还需 `worker-src 'self' blob:`。
 
